@@ -31,7 +31,7 @@ ndc <- as.data.table(readRDS("data/all_unique_ndcs.rds"))
 plan(multisession, workers = 10)
 
 ndc_status <- foreach(code = ndc[, NDC]) %dofuture% {
-  get_ndc_status(code, local_host = TRUE)
+  get_ndc_status(code, local_host = local)
 }
 
 ndc[, ndc_status := unlist(ndc_status)]
@@ -40,8 +40,8 @@ unknown <- ndc[ndc_status == "UNKNOWN" | is.na(ndc_status), ]
 ndc <- ndc[ndc_status %in% c("ACTIVE", "OBSOLETE", "ALIEN")]
 
 drug_classes <- foreach(code = ndc$NDC) %dofuture% {
-  rxcui <- from_ndc(code, local_host = TRUE)
-  atc <- get_atc(rxcui, local_host = TRUE)
+  rxcui <- from_ndc(code, local_host = local)
+  atc <- get_atc(rxcui, local_host = local)
   list(rxcui = rxcui, atc = atc)
 }
 
@@ -51,7 +51,7 @@ ndc[, `:=`(rxcui = map_chr(drug_classes, "rxcui"),
 obsolete <- ndc[is.na(atc) & !is.na(rxcui), ]
 
 rxcui_status <- foreach(code = obsolete[, rxcui]) %dofuture% {
-  get_rxcui_status(code, local_host = TRUE)
+  get_rxcui_status(code, local_host = local)
 }
 
 obsolete[, rxcui_status := unlist(rxcui_status)]
@@ -78,7 +78,7 @@ obsolete[, rxcui := fifelse(!is.na(unlist(new_rxcui)), unlist(new_rxcui), rxcui)
 
 alt_drug_class <- foreach(code = unlist(new_rxcui)) %dofuture% {
   if (is.na(code)) return(NA_character_)
-  get_atc(code, local_host = TRUE)
+  get_atc(code, local_host = local)
 }
 
 obsolete[, atc := alt_drug_class]
